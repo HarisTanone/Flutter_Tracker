@@ -1,6 +1,6 @@
 class UpdateStatusResponse {
   final String success;
-  final int data;
+  final dynamic data;
 
   UpdateStatusResponse({
     required this.success,

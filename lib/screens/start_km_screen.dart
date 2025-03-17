@@ -61,7 +61,8 @@ class _VehicleDataScreenState extends State<StartKmScreen> {
         });
       } else {
         if (mounted) {
-          CustomMessage.show(context, "Gagal memuat data nomor polisi",
+          CustomMessage.show(
+              context, "Silahkan Hubungi Admin, Belum ada SJ hari ini!",
               backgroundColor: AppColors.primaryRed);
         }
       }
@@ -77,6 +78,14 @@ class _VehicleDataScreenState extends State<StartKmScreen> {
         });
       }
     }
+  }
+
+  Future<void> _refreshData() async {
+    _speedometerController.clear();
+    setState(() {
+      _imageFile = null;
+    });
+    await _loadNomorPolisi();
   }
 
   Future<void> _takePicture() async {
@@ -190,145 +199,146 @@ class _VehicleDataScreenState extends State<StartKmScreen> {
       ),
       body: _isLoading && nomorPolisi.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Nomor Polisi Display
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8.0),
-                      border: Border.all(color: Colors.grey[400]!),
+          : RefreshIndicator(
+              onRefresh: _refreshData,
+              color: AppColors.primaryRed,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Nomor Polisi Display
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(color: Colors.grey[400]!),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            nomorPolisi,
+                            style: const TextStyle(
+                              fontSize: 24.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
+
+                    const SizedBox(height: 24.0),
+
+                    // Speedometer Input
+                    TextField(
+                      controller: _speedometerController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: "Nilai Awal Speedometer",
+                        hintText: "Masukkan angka speedometer",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        prefixIcon: const Icon(Icons.speed),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24.0),
+
+                    // Camera Section
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          nomorPolisi,
-                          style: const TextStyle(
-                            fontSize: 24.0,
+                        const Text(
+                          "Foto Speedometer:",
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            fontSize: 16.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+                        GestureDetector(
+                          onTap: _takePicture,
+                          child: Container(
+                            height: 444,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8.0),
+                              border: Border.all(color: Colors.grey[400]!),
+                            ),
+                            child: _imageFile == null
+                                ? const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.camera_alt,
+                                        size: 48.0,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(height: 8.0),
+                                      Text(
+                                        "Tap untuk mengambil foto",
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  )
+                                : FutureBuilder<bool>(
+                                    future: _imageFile!.exists(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                            child: CircularProgressIndicator());
+                                      }
+
+                                      if (snapshot.hasData &&
+                                          snapshot.data == true) {
+                                        return Image.file(
+                                          _imageFile!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Center(
+                                              child: Text("Gagal memuat gambar",
+                                                  style: TextStyle(
+                                                      color: Colors.red)),
+                                            );
+                                          },
+                                        );
+                                      } else {
+                                        return const Center(
+                                          child: Text(
+                                              "File gambar tidak ditemukan",
+                                              style:
+                                                  TextStyle(color: Colors.red)),
+                                        );
+                                      }
+                                    },
+                                  ),
                           ),
                         ),
                       ],
                     ),
-                  ),
 
-                  const SizedBox(height: 24.0),
+                    const SizedBox(height: 32.0),
 
-                  // Speedometer Input
-                  TextField(
-                    controller: _speedometerController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: "Nilai Awal Speedometer",
-                      hintText: "Masukkan angka speedometer",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: CustomButton(
+                        text: "Kirim Data",
+                        isLoading: _isLoading,
+                        onPressed: _submitData,
                       ),
-                      prefixIcon: const Icon(Icons.speed),
                     ),
-                  ),
-
-                  const SizedBox(height: 24.0),
-
-                  // Camera Section
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Foto Speedometer:",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16.0,
-                        ),
-                      ),
-                      const SizedBox(height: 8.0),
-                      GestureDetector(
-                        onTap: _takePicture,
-                        child: Container(
-                          height: 444,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8.0),
-                            border: Border.all(color: Colors.grey[400]!),
-                          ),
-                          child: // Modifikasi bagian tampilan gambar
-                              _imageFile == null
-                                  ? const Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.camera_alt,
-                                          size: 48.0,
-                                          color: Colors.grey,
-                                        ),
-                                        SizedBox(height: 8.0),
-                                        Text(
-                                          "Tap untuk mengambil foto",
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                      ],
-                                    )
-                                  : FutureBuilder<bool>(
-                                      future: _imageFile!.exists(),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState ==
-                                            ConnectionState.waiting) {
-                                          return const Center(
-                                              child:
-                                                  CircularProgressIndicator());
-                                        }
-
-                                        if (snapshot.hasData &&
-                                            snapshot.data == true) {
-                                          return Image.file(
-                                            _imageFile!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                              return const Center(
-                                                child: Text(
-                                                    "Gagal memuat gambar",
-                                                    style: TextStyle(
-                                                        color: Colors.red)),
-                                              );
-                                            },
-                                          );
-                                        } else {
-                                          return const Center(
-                                            child: Text(
-                                                "File gambar tidak ditemukan",
-                                                style: TextStyle(
-                                                    color: Colors.red)),
-                                          );
-                                        }
-                                      },
-                                    ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32.0),
-
-                  // Submit Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: CustomButton(
-                      text: "Kirim Data",
-                      isLoading: _isLoading,
-                      onPressed: _submitData,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );

@@ -75,25 +75,31 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       return;
     }
 
+    if (_selectedStatus == 'Gagal' && _selectedFailCode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a reason for failure')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       User? user = await AuthService().getUserData();
-      String? username = user?.username;
+      String? username = user?.username ?? '';
+
       final position = await LocationHelper.getCurrentLocation();
 
       if (position == null) {
         throw Exception('Failed to get location');
       }
 
-      // Convert image to base64
       final bytes = await _imageFile!.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      // Post delivery data
       await _apiService.postItemDeliver(
-        username: username ?? '',
-        keterangan: _descriptionController.text,
+        username: username,
+        keterangan: _descriptionController.text.trim(),
         codeGagal: _selectedStatus == 'Gagal' ? _selectedFailCode : null,
         foto: base64Image,
         lat: position.latitude.toString(),
@@ -101,19 +107,17 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         custID: widget.custID,
       );
 
-      // Update status
       await _apiService.updateStatus(
         status: _selectedStatus!,
         customerId: widget.custID,
       );
 
-      // Navigate back to main screen
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => MainScreen(
-              username: username ?? '',
+              username: username,
               latitude: position.latitude.toString(),
               longitude: position.longitude.toString(),
             ),

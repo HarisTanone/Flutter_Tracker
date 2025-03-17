@@ -19,7 +19,6 @@ class DeliveredService {
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true', // Add this header
         },
       );
 
@@ -53,29 +52,59 @@ class DeliveredService {
     required String lng,
     required String custID,
   }) async {
-    final String? token = await AuthService().getToken();
+    try {
+      final String? token = await AuthService().getToken();
 
-    final response = await http.post(
-      Uri.parse('${ApiConstants.baseUrl}item-deliver'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'username': username,
-        'keterangan': keterangan,
-        'code_gagal': codeGagal,
-        'foto': foto,
-        'lat': lat,
-        'lng': lng,
-        'custID': custID,
-      }),
-    );
+      if (token == null) {
+        throw Exception('Authentication token is missing');
+      }
 
-    if (response.statusCode == 201) {
-      return ItemDeliver.fromJson(json.decode(response.body));
-    } else {
-      throw Exception('Failed to post item deliver');
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}item-deliver'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: json.encode({
+          'username': username,
+          'keterangan': keterangan,
+          'code_gagal': codeGagal,
+          'foto': foto,
+          'lat': lat,
+          'lng': lng,
+          'custID': custID,
+        }),
+      );
+
+      print(
+          'Item Deliver Response: ${response.statusCode}, Body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        return ItemDeliver.fromJson(json.decode(response.body));
+      } else {
+        if (response.body.isNotEmpty) {
+          try {
+            final errorData = json.decode(response.body);
+            if (errorData.containsKey('error') &&
+                errorData.containsKey('message')) {
+              throw Exception(
+                  'Failed to post item deliver: ${errorData['message']}');
+            } else {
+              throw Exception('Failed to post item deliver: Unknown error');
+            }
+          } catch (e) {
+            throw Exception(
+                'Failed to post item deliver: ${response.statusCode}');
+          }
+        } else {
+          throw Exception(
+              'Failed to post item deliver: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error in postItemDeliver: $e');
+      rethrow;
     }
   }
 
@@ -83,24 +112,49 @@ class DeliveredService {
     required String status,
     required String customerId,
   }) async {
-    final String? token = await AuthService().getToken();
+    try {
+      final String? token = await AuthService().getToken();
 
-    final response = await http.post(
-      Uri.parse('${ApiConstants.baseUrl}update-status'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'status': status,
-        'customer_id': customerId,
-      }),
-    );
+      if (token == null) {
+        throw Exception('Authentication token is missing');
+      }
 
-    if (response.statusCode == 200) {
-      return UpdateStatusResponse.fromJson(json.decode(response.body));
-    } else {
-      throw Exception('Failed to update status');
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}update-status'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'status': status,
+          'customer_id': customerId,
+        }),
+      );
+
+      print(
+          'Update Status Response: ${response.statusCode}, Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Try to decode the response safely
+        final jsonData = json.decode(response.body);
+        return UpdateStatusResponse.fromJson(jsonData);
+      } else {
+        // More descriptive error based on response
+        if (response.body.isNotEmpty) {
+          try {
+            final errorData = json.decode(response.body);
+            throw Exception(
+                'Failed to update status: ${errorData['error'] ?? 'Unknown error'}');
+          } catch (e) {
+            throw Exception('Failed to update status: ${response.statusCode}');
+          }
+        } else {
+          throw Exception('Failed to update status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error in updateStatus: $e');
+      rethrow;
     }
   }
 }
